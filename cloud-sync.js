@@ -6,8 +6,8 @@
 //
 // Інструкція з налаштування — у файлі SETUP.md поруч із цим файлом.
 
-const SUPABASE_URL = 'ВСТАВ_СЮДИ_URL_ПРОЕКТУ';       // напр. https://abcdxyz.supabase.co
-const SUPABASE_ANON_KEY = 'ВСТАВ_СЮДИ_ANON_KEY';      // Project Settings → API → anon public
+const SUPABASE_URL = 'https://zgyqppevksidtprnbkrq.supabase.co';       // напр. https://abcdxyz.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpneXFwcGV2a3NpZHRwcm5ia3JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNjg1MzUsImV4cCI6MjEwNDY0NDUzNX0.jYDxY1HPa2vHGmtnbH0Q5xYM8qJw8BYSOkm6maVIjT8';      // Project Settings → API → anon public
 const LOCAL_KEY = 'student-hub-v5';
 const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла за 3с — застосунок все одно відкриється офлайн
 
