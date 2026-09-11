@@ -24,12 +24,6 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
     document.body.appendChild(s);
   }
 
-  // База ще не підключена — запускаємо застосунок так, як він працював досі.
-  if (!configured) {
-    loadApp();
-    return;
-  }
-
   const withTimeout = (promise, ms) => Promise.race([
     promise,
     new Promise(resolve => setTimeout(() => resolve(null), ms))
@@ -38,6 +32,7 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
   // Підтягує дані ЛИШЕ поточного залогіненого користувача (RLS сам це гарантує:
   // навіть якщо тут помилитись у запиті, чужий рядок сервер просто не поверне).
   async function pullFromCloud() {
+    if (!supabase) return; // хмара ще не налаштована (див. SETUP.md)
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return; // не залогінений — працюємо локально, без хмари
 
@@ -73,6 +68,7 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
   }
 
   async function pushToCloud() {
+    if (!supabase) return; // хмара ще не налаштована (див. SETUP.md)
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return; // не залогінений — зміни лишаються тільки в цьому браузері
     const raw = localStorage.getItem(LOCAL_KEY);
@@ -137,16 +133,23 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
 .sh-auth-secondary:hover{border-color:var(--blue);color:var(--text)}
 .sh-auth-secondary.danger:hover{border-color:#ff8a8a;color:#ffb3b3}
 .sh-auth-error{color:#ff8a8a;font-size:12px;text-align:center;margin:14px 0 0}
-.sh-auth-trigger{position:fixed;bottom:16px;right:16px;z-index:900;border:1px solid var(--line);
-  background:#101827e6;color:var(--text);border-radius:99px;padding:10px 16px 10px 12px;
-  font:700 12px Manrope,Arial,sans-serif;display:flex;align-items:center;gap:7px;cursor:pointer;
-  box-shadow:0 12px 28px #0007;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  transition:border-color .2s ease,transform .2s ease;max-width:min(70vw,240px)}
+.sh-auth-trigger{position:fixed;bottom:18px;right:18px;z-index:900;border:0;
+  background:linear-gradient(135deg,var(--blue),var(--violet));color:#06131d;
+  border-radius:999px;padding:8px 8px 8px 20px;
+  font:800 13px Manrope,Arial,sans-serif;display:flex;align-items:center;gap:12px;cursor:pointer;
+  box-shadow:0 16px 36px rgba(70,182,255,.38),0 0 0 1px rgba(255,255,255,.09) inset;
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .25s ease,filter .2s ease,background .3s ease;
+  max-width:min(78vw,260px)}
 .sh-auth-trigger span.sh-auth-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sh-auth-trigger:hover{border-color:var(--blue);transform:translateY(-1px)}
-.sh-auth-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
-.sh-auth-trigger.signed-in .sh-auth-dot{background:var(--green);box-shadow:0 0 8px var(--green)}
-@media (max-width:610px){.sh-auth-trigger{bottom:14px;right:14px;padding:9px 14px 9px 11px}}
+.sh-auth-trigger:hover{transform:translateY(-2px);filter:brightness(1.07);
+  box-shadow:0 20px 44px rgba(70,182,255,.48),0 0 0 1px rgba(255,255,255,.12) inset}
+.sh-auth-trigger:active{transform:translateY(0) scale(.96)}
+.sh-auth-icon-badge{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:rgba(6,19,29,.32);color:#fff;font-size:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);
+  transition:background .3s ease}
+.sh-auth-trigger.signed-in{background:linear-gradient(135deg,var(--green),#22c98d)}
+.sh-auth-trigger.signed-in .sh-auth-icon-badge{background:rgba(6,21,15,.32)}
+@media (max-width:610px){.sh-auth-trigger{bottom:14px;right:14px;padding:7px 7px 7px 16px}}
 @media (prefers-reduced-motion: reduce){.sh-auth-backdrop,.sh-auth-modal,.sh-auth-trigger{transition:none}}
 `;
     document.head.appendChild(style);
@@ -198,7 +201,7 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
     trigger.type = 'button';
     trigger.className = 'sh-auth-trigger';
     trigger.id = 'sh-auth-trigger';
-    trigger.innerHTML = '<span class="sh-auth-dot" aria-hidden="true"></span><span class="sh-auth-label">Увійти</span>';
+    trigger.innerHTML = '<span class="sh-auth-label">Увійти</span><span class="sh-auth-icon-badge" aria-hidden="true">☁</span>';
     document.body.appendChild(trigger);
 
     const els = {
@@ -262,6 +265,10 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
 
     els.form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!configured) {
+        showError('Хмарна синхронізація ще не підключена: у файлі cloud-sync.js потрібно вставити реальні SUPABASE_URL і SUPABASE_ANON_KEY (див. SETUP.md).');
+        return;
+      }
       const email = els.email.value.trim();
       if (!EMAIL_RE.test(email)) {
         showError('Введи коректну адресу пошти.');
@@ -275,6 +282,7 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
     });
 
     els.signout.addEventListener('click', async () => {
+      if (!supabase) return;
       await supabase.auth.signOut();
       closeModal();
     });
@@ -282,6 +290,12 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
     trigger.addEventListener('click', openModal);
 
     async function refreshUI() {
+      if (!supabase) {
+        els.label.textContent = 'Увійти';
+        trigger.classList.remove('signed-in');
+        showState('form');
+        return;
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         els.label.textContent = 'Синхронізовано';
@@ -295,12 +309,14 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
       }
     }
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      refreshUI();
-      if (session) {
-        await pullFromCloud();
-      }
-    });
+    if (supabase) {
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        refreshUI();
+        if (session) {
+          await pullFromCloud();
+        }
+      });
+    }
 
     refreshUI();
   }
@@ -311,8 +327,11 @@ const CLOUD_TIMEOUT_MS = 3000; // якщо хмара не відповіла з
   }
 
   async function init() {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    await pullFromCloud();
+    // Кнопка входу зʼявляється завжди — навіть якщо хмару ще не підключено.
+    if (configured) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      await pullFromCloud();
+    }
     loadApp();
     watchLocalChanges();
     setupAuthUI();
